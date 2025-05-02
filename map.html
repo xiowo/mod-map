@@ -1,17 +1,17 @@
 ﻿<!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Rain World Mod Map</title>
+    <title>雨世界模组地图</title>
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
 
-    <meta property="og:image" content="https://alduris.github.io/mod-map/embed.jpg" />
+    <meta property="og:image" content="https://rain-world-map-sc.github.io/mod-map/embed.jpg" />
     <meta property="og:type" content="object" />
     <meta property="og:title" content="Rain World Mod Map" />
-    <meta property="og:url" content="https://alduris.github.io/mod-map/" />
-    <meta property="og:description" content="An online interactive map for modded regions in Rain World." />
+    <meta property="og:url" content="https://rain-world-map-sc.github.io/mod-map/" />
+    <meta property="og:description" content="一个包含雨世界中Mod区域的在线互动地图。" />
     <link rel="stylesheet" href="./rw.css" />
     <link rel="stylesheet" href="./leaflet/leaflet.css" />
 
@@ -217,6 +217,28 @@
             left: 24px;
         }
 
+        .toggleLanguage-ckb {
+            position: relative;
+            top: 3px;
+            padding-left: 6px;
+            margin-left: auto;
+        }
+
+        #toggleLanguage {
+            position: relative;
+            width: 24px;
+            height: 24px;
+        }
+
+        #toggleLanguage~label {
+            left: 4px;
+            top: -3px;
+        }
+
+        #toggleLanguage::before {
+            font-size: 1rem;
+        }
+
         .region-btn {
             font-size: 0.8rem;
             width: 230px;
@@ -230,7 +252,7 @@
             color: #999;
         }
 
-        input[type='radio'].rw-ui + span {
+        input[type='radio'].rw-ui+span {
             top: calc(50% - 10px);
             /* proof that CSS is stupid, cant fucking vertical center text */
         }
@@ -266,6 +288,7 @@
             .side-panel {
                 transition: left ease 0.3s, right ease 0.3s;
             }
+
             .collapse-tab {
                 display: block;
                 cursor: pointer;
@@ -331,9 +354,14 @@
 
     <div class="side-panel left-panel rw-text collapsible collapsed">
         <div style="padding-left: 8px; padding-bottom: 8px;">
-            <a href="./" class="rw-text">&lt; Back to Index</a>
+            <a href="/mod-map" class="rw-text">&lt; 返回索引</a>
             <hr />
-            <span>Regions</span>
+            <span>区域</span>
+            <span class="toggleLanguage-ckb">
+                <input type="checkbox" class="rw-ui rw-ui-ckb toggleLanguage-ckb" id="toggleLanguage"
+                    onclick="toggleLanguage()">
+                <label class="rw-text">显示中文</label>
+            </span>
         </div>
 
         <form name="regionselect" id="region-select" class="scroll-ish"></form>
@@ -342,11 +370,11 @@
     </div>
 
     <div class="side-panel right-panel rw-text collapsible collapsed">
-        <div>Slugcat</div>
+        <div>蛞蝓猫</div>
         <form name="difficulty" class="difficulty-select" id="scug-selector">
         </form>
 
-        <div>Layers</div>
+        <div>图层</div>
         <div id="layer-content" class="scroll-ish"></div>
 
         <div class="collapse-tab"></div>
@@ -448,25 +476,54 @@
         var regions = {};
         var slugcats = [];
         var poRules = {};
+        var displayChinese = false;  // 控制是否显示中文的标记
 
-        getJsonObject("regions.json", function (json) { regions = json; }, false);
-        getJsonObject("slugcats.json", function (json) { slugcats = json; }, false);
+        // 加载初始语言选择状态
+        window.addEventListener("load", () => {
+            displayChinese = localStorage.getItem('displayChinese') === 'true';
+            const checkbox = document.getElementById("toggleLanguage");
+            checkbox.checked = displayChinese;
+            renderRegions();
+            renderSlugcats();
+        });
+
+        // 切换语言显示并记住用户的选择
+        function toggleLanguage() {
+            displayChinese = document.getElementById("toggleLanguage").checked;
+            localStorage.setItem('displayChinese', displayChinese);
+            renderRegions();
+            renderSlugcats();
+        }
+
+        getJsonObject("regions.json", function (json) {
+            regions = json;
+            renderRegions();
+        }, false);
+
+        getJsonObject("slugcats.json", function (json) {
+            slugcats = json;
+        }, false);
+
         getJsonObject("placedobjectsdata.json", function (json) { poRules = json; }, false);
 
-        var html = "";
-        var regionListSorted = Object.keys(regions).sort((a, b) => regions[a]["name"].toUpperCase().localeCompare(regions[b]["name"].toUpperCase()));
-        for (const r of regionListSorted) {
-            html += `
+        function renderRegions() {
+            var html = "";
+            var regionListSorted = Object.keys(regions).sort((a, b) => regions[a]["name"].toUpperCase().localeCompare(regions[b]["name"].toUpperCase()));
+
+            for (const r of regionListSorted) {
+                const regionName = displayChinese ? (regions[r]["cname"] || regions[r]["name"] || "UNKNOWN") : (regions[r]["name"] || "UNKNOWN");
+                html += `
 <label>
     <div class="region-btn">
         <input type="radio" class="rw-ui" name="regions" onclick="selectRegion(this.value);" value="${r}"${r == region ? ' checked' : ''} autocomplete = "off">
-        <span>${regions[r]["name"].toUpperCase()} (${r})</span>
+        <span>${regionName.toUpperCase()} (${r})</span>
     </div>
-</label>`
+</label>`;
+            }
             document.getElementById('region-select').innerHTML = html;
         }
-        
-        html = "";
+
+        var html = "";
         for (const slugcatName of slugcats) {
             html += `
 <label class="difficulty-btn" id="scug-${slugcatName}">
@@ -615,7 +672,7 @@
             crs: L.CRS.Simple,
             zoomControl: false,
         });
-        map.attributionControl.setPrefix('Powered by <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a>, <a href="https://github.com/henpemaz" title="Gamedev &amp; associated arts enthusiast">Henpemaz</a>, &amp; <a href="https://github.com/alduris" title="Programmer and fox enjoyer">Alduris</a> | Join the <a href="https://discord.gg/kPGJNhrnu2">Rain World Modding Server</a>')
+        map.attributionControl.setPrefix('基于<a href="https://leafletjs.com" title="一个用于交互式地图的JS库">Leaflet</a>, <a href="https://github.com/henpemaz" title="游戏开发及相关艺术爱好者">Henpemaz</a>, &amp; <a href="https://github.com/alduris" title="程序员和狐狸爱好者">Alduris</a>')
         map.setView([0, 0], -5);
 
         // Events
@@ -709,7 +766,7 @@
                 // Tileset layer
                 if (tileLayer != null) map.removeLayer(tileLayer);
                 tileLayer = L.tileLayer(`${roompath}/{z}/{x}_{y}.png`, {
-                    attribution: "<a href=\"https://store.steampowered.com/app/312520/Rain_World/\">Rain World</a> by <a href=\"https://twitter.com/VideocultMedia\">Videocult</a>",
+                    attribution: "<a href=\"https://store.steampowered.com/app/312520/Rain_World/\">雨世界</a> 由 <a href=\"https://twitter.com/VideocultMedia\">Videocult</a>制作",
                     minZoom: -7,
                     maxZoom: 3,
                     maxNativeZoom: 0, // important, stop requesting tiles at this point
@@ -752,9 +809,9 @@
                     }
                 });
                 if (hadRooms) roomsLayer.addTo(map);
-                overlays.addOverlay(roomsLayer, "Rooms");
+                overlays.addOverlay(roomsLayer, "房间聚焦");
                 if (hadNames) roomNames.addTo(map);
-                overlays.addOverlay(roomNames, "Room Names");
+                overlays.addOverlay(roomNames, "房间名称");
 
                 // Connections
                 let hadConnections = map.hasLayer(connectionsLayer) || loadedRegion == null;
@@ -770,7 +827,7 @@
                     interactive: false,
                 });
                 if (hadConnections) connectionsLayer.addTo(map);
-                overlays.addOverlay(connectionsLayer, "Connections");
+                overlays.addOverlay(connectionsLayer, "管道连接");
 
                 // Geometry
                 let hadGeometry = map.hasLayer(geometryLayer) || loadedRegion == null;
@@ -786,7 +843,7 @@
                     lineJoin: "miter",
                 });
                 if (hadGeometry) geometryLayer.addTo(map);
-                overlays.addOverlay(geometryLayer, "Geometry");
+                overlays.addOverlay(geometryLayer, "房间轮廓");
 
                 // Spawns
                 let hadSpawns = map.hasLayer(densLayer) || loadedRegion == null;
@@ -846,7 +903,7 @@
                     },
                 });
                 if (hadSpawns) densLayer.addTo(map);
-                overlays.addOverlay(densLayer, "Spawns");
+                overlays.addOverlay(densLayer, "生物生成");
 
                 // Placed Objects
                 let hadPlacedObjects = map.hasLayer(placedObjectsLayer) || loadedRegion == null;
@@ -918,7 +975,7 @@
                     },
                 });
                 //if (hadPlacedObjects) placedObjectsLayer.addTo(map);
-                //overlays.addOverlay(placedObjectsLayer, "Placed Objects");
+                //overlays.addOverlay(placedObjectsLayer, "放置物品");
 
                 // Room Tags
                 let hadRoomTags = map.hasLayer(roomTagsLayer) || loadedRegion == null;
@@ -984,7 +1041,7 @@
                     },
                 });
                 //if (hadRoomTags) roomTagsLayer.addTo(map);
-                //overlays.addOverlay(roomTagsLayer, "Room Tags");
+                //overlays.addOverlay(roomTagsLayer, "房间标签");
 
                 // Zoom to room on rooms loaded
                 let foundRoom = false;
@@ -1454,8 +1511,15 @@
         // Collapsible things
         var uncollapsed = null;
         var collapsible = document.querySelectorAll(".collapsible");
+
         for (const el of collapsible) {
-            el.style.setProperty("--hide-pos", "-" + (el.getBoundingClientRect().width) + "px");
+            // 设置固定的 --hide-pos 值
+            if (el.classList.contains("left-panel")) {
+                el.style.setProperty("--hide-pos", "-262px");
+            } else if (el.classList.contains("right-panel")) {
+                el.style.setProperty("--hide-pos", "-182px");
+            }
+
             var button = el.querySelector(".collapse-tab");
             button.addEventListener("click", (e) => {
                 if (uncollapsed != null) {
